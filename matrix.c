@@ -78,13 +78,13 @@ void init(void) {
     PORTC |= 0x40;
 
     DDRD |= 0x93;
-    PORTD = (PORTD & (~0x6c)) | 0x80;
+    PORTD = (PORTD & 0x6c) | 0x80;
 
     DDRE |= 0x40;
     PORTE |= 0x40;
 
-    DDRF = (DDRF & (~0x7f)) | 0x40;
-    PORTF |= 0xc0;
+    DDRF = (DDRF & 0x7f) | 0x70;
+    PORTF |= 0xf0;
 }
 
 
@@ -120,11 +120,17 @@ void select_cols(uint8_t current_col) {
  *  Col13      0        0        0        0
  *  Col14      0        0        0        0
  *  Col15      0        0        0        0
+ *  Col16             A3(PF4)
+ *  Col17             A2(PF5)
  *  We don't select echo one, otherwise ,Just using bit operator for shortcut.
  *  */
-    PORTD = ((PORTD & 0xec) |
-             (((current_col & 0x08) << 1) | ((current_col & 0x04) >> 2) | ((current_col & 0x02) << 0)));
-    PORTF = ((PORTF & 0xbf) | ((current_col & 0x01) << 6));
+    if (current_col < 16) {
+        PORTD = ((PORTD & 0xec) |
+                 (((current_col & 0x08) << 1) | ((current_col & 0x04) >> 2) | ((current_col & 0x02) << 0)));
+        PORTF = ((PORTF & 0xbf) | ((current_col & 0x01) << 6));
+    } else {
+        PORTF &= ~(0x01 << (4 + (current_col & 0x01)));
+    }
 }
 
 void select_rows(uint8_t current_row) {
@@ -184,7 +190,7 @@ void unselect_rows(void) {
 uint8_t matrix_scan(void) {
     for (uint8_t current_row = 0; current_row < MATRIX_ROWS; current_row++) {
         select_rows(current_row);
-        wait_us(30);
+        wait_us(15);
         bool matrix_changed = read_rows_on_col(matrix_debouncing, current_row);
         if (matrix_changed) {
             debouncing = true;
@@ -207,13 +213,11 @@ uint8_t matrix_scan(void) {
 bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t select_row) {
     bool matrix_changed = false;
     for (uint8_t i = 0; i < MATRIX_COLS; i++) {
-        if (i < 16) {
-            select_cols(i);
-            wait_us(30);
-        }
+        select_cols(i);
+        wait_us(15);
         matrix_row_t current_value = current_matrix[select_row];
 
-        if (i > 15) {
+        if (i > 0x0f) {
             if ((PINF & (1 << (5 - (i & 0x01)))) == 0) {
                 current_matrix[select_row] |= ((uint32_t) 1 << i);
             } else {
