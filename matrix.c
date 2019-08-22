@@ -34,7 +34,7 @@ static bool debouncing = false;
 static matrix_row_t matrix[MATRIX_ROWS];
 static matrix_row_t matrix_debouncing[MATRIX_ROWS];
 
-static void init(void);
+static void init_register(void);
 
 static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col);
 
@@ -70,7 +70,7 @@ uint8_t matrix_cols(void) {
     return MATRIX_COLS;
 }
 
-void init(void) {
+void init_register(void) {
     DDRB |= 0x7a;
     PORTB |= 0x7a;
 
@@ -83,14 +83,12 @@ void init(void) {
     DDRE |= 0x40;
     PORTE |= 0x40;
 
-    DDRF = (DDRF & 0x7f) | 0x70;
+    DDRF = (DDRF & 0x7f) | 0x40;
     PORTF |= 0xf0;
 }
 
-
 void matrix_init(void) {
-    debug_enable = true;
-    init();
+    init_register();
     for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
         matrix[i] = 0;
         matrix_debouncing[i] = 0;
