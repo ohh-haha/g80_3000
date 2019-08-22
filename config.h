@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define PRODUCT         g80_3000
 #define DESCRIPTION     A custom keyboard
 
-#define MATRIX_ROWS 10
+#define MATRIX_ROWS 8
 #define MATRIX_COLS 18
 
 #define MATRIX_ROW_PINS { }

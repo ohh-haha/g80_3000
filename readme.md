@@ -1,11 +1,26 @@
 # g80-3000
 
-g80-3000 MUC replaces using an atmega32u4 chip and a HC4067 multiplex.
-the origin g80-3000 micro controller using 9 rows and 18 cols for matrix scaning.
+![g80-3000](imgur.com image replace me!)
 
-Keyboard Maintainer: [ftfunjth](https://github.com/ftfunjth)  
+使用atmega32u4  和 两个HC4067 替换g80_3000 本身的主控。
+其中行为8 列为16  因此 左Menu键和 右Fn键 和小键盘的\*无法使用。
+其中列的对应关系为  
+S0  => D2
+S1  => D3
+S2  => D4
+S3  => D5
+SIN => D6
+
+其中行的对应关系为
+S0  => D8
+S1  => D9
+S2  => D10
+S3  => D14
+SIN  => D15
+
+Keyboard Maintainer: [ftfunjth](https://github.com/yourusername)  
 Hardware Supported: The PCBs, controllers supported  
-Hardware Availability: atmega32u4
+Hardware Availability: links to where you can find this hardware
 
 Make example for this keyboard (after setting up your build environment):
 

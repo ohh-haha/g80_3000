@@ -1,5 +1,4 @@
-/* Copyright 2018 Maarten Dekkers <maartenwut@gmail.com>
- *
+/* ftfunjth<imallrightgg@gmail.com>
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
@@ -14,55 +13,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
-    18 个 针脚  5 + 13
-
-    // 行 Output lower level
-    // 列 Input Pull resistance
-
-    PC  0 0 0 0 0 0 0 0
-    0 0
-
-    DDRB =  (DDRB & (~0xf0)) | 0xf0;
-    DDRC &= ~0xc0;
-    DDRD =  (DDRD & (~0xdf)) | 0x17;
-    DDRE =  (DDRE & (~0x40)) | 0x40;
-    DDRF &= ~0x30;
-
-    PORTB &= (~0xf0);
-    PORTC &= ~0xc0;
-    PORTD = (PORTD & (~0xdf)) | 0x08;
-    PORTE &= ~0x40;
-    PORTF = (PORTF & (~0x30)) | 0x30;
-
-    0b 1 1 0 1 1 1 1 1
-
-    RX1   SIN       PD3
-    TX0   S0        PD2
-    2     S1        PD1
-    3     S2        PD0
-    4     S3        PD4
-    5     Row1      PC6
-    6     Row2      PD7
-    7     Row3      PE6
-    8     Row4      PB4
-    9     Row5      PB5
-    10    Row6      PB6
-    14    Row7      PB7
-    15    Row8      PD6
-    16    Row9      PC7
-    A0
-    A1
-    A2    Col12     PF5
-    A3    Col11     PF4
-
-
-*/
-
 #include <stdint.h>
 #include <stdbool.h>
-#include <quantum/quantum.h>
 #include <avr/io.h>
+#include <quantum/quantum.h>
 #include "wait.h"
 #include <print.h>
 #include "debug.h"
@@ -85,6 +39,10 @@ static void init(void);
 static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col);
 
 static void select_cols(uint8_t col);
+
+static void select_rows(uint8_t rows);
+
+static void unselect_rows(void);
 
 __attribute__ ((weak))
 void matrix_init_user(void) {}
@@ -112,6 +70,24 @@ uint8_t matrix_cols(void) {
     return MATRIX_COLS;
 }
 
+void init(void) {
+    DDRB |= 0x7a;
+    PORTB |= 0x7a;
+
+    DDRC |= 0x40;
+    PORTC |= 0x40;
+
+    DDRD |= 0x93;
+    PORTD = (PORTD & (~0x6c)) | 0x80;
+
+    DDRE |= 0x40;
+    PORTE |= 0x40;
+
+    DDRF = (DDRF & (~0x7f)) | 0x40;
+    PORTF |= 0xc0;
+}
+
+
 void matrix_init(void) {
     debug_enable = true;
     init();
@@ -123,33 +99,98 @@ void matrix_init(void) {
     matrix_init_quantum();
 }
 
-void init(void) {
-    DDRB = (DDRB & (~0xf0)) | 0xf0;
-    DDRC &= ~0xc0;
-    DDRD = (DDRD & (~0xdf)) | 0x17;
-    DDRE = (DDRE & (~0x40)) | 0x40;
-    DDRF &= ~0x30;
-
-    PORTB &= (~0xf0);
-    PORTC &= ~0xc0;
-    PORTD = (PORTD & (~0xdf)) | 0x08;
-    PORTE &= ~0x40;
-    PORTF = (PORTF & (~0x30)) | 0x30;
-}
 
 void select_cols(uint8_t current_col) {
-    uint8_t index = current_col > 14 ? current_col - 2 : current_col;
-    PORTD = (PORTD & (~0x17)) |
-            (((index & 0x04) >> 2) | ((index & 0x02) << 0) | ((index & 0x01) << 2) | ((index & 0x08) << 1));
+/*  Using a CH4067 Multiplex.
+ *  SIN        S0       S1       S2       S3
+ *  A0(PF7)    A1(PF6)  D2(PD1)  D3(PD0)  D4(PD4)
+ *  Col0       0        0        0        0
+ *  Col1       1        0        0        0
+ *  Col2       0        1        0        0
+ *  Col3       1        1        0        0
+ *  Col4       0        0        0        0
+ *  Col5       0        0        0        0
+ *  Col6       0        0        0        0
+ *  Col7       0        0        0        0
+ *  Col8       0        0        0        0
+ *  Col9       0        0        0        0
+ *  Col10      0        0        0        0
+ *  Col11      0        0        0        0
+ *  Col12      0        0        0        0
+ *  Col13      0        0        0        0
+ *  Col14      0        0        0        0
+ *  Col15      0        0        0        0
+ *  We don't select echo one, otherwise ,Just using bit operator for shortcut.
+ *  */
+    PORTD = ((PORTD & 0xec) |
+             (((current_col & 0x08) << 1) | ((current_col & 0x04) >> 2) | ((current_col & 0x02) << 0)));
+    PORTF = ((PORTF & 0xbf) | ((current_col & 0x01) << 6));
+}
+
+void select_rows(uint8_t current_row) {
+/*
+ *   Index  Com
+ *   Row0   D5(PC6)
+ *   Row1   D6(PD7)
+ *   Row2   D7(PE6)
+ *   Row3   D8(PB4)
+ *   Row4   D9(PB5)
+ *   Row5   D10(PB6)
+ *   Row6   D14(PB3)
+ *   Row7   D15(PB1)
+ *
+ *   PORTB Init Status ?1111?1?
+ *   PORTC Init Status ?1??????
+ *   PORTD Init Status 1???????
+ *   PORTE Init Status ?1??????
+*/
+    switch (current_row) {
+        case 0:
+            PORTC &= 0xbf;
+            break;
+        case 1:
+            PORTD &= 0x7f;
+            break;
+        case 2:
+            PORTE &= 0xbf;
+            break;
+        case 3:
+            PORTB &= 0xef;
+            break;
+        case 4:
+            PORTB &= 0xdf;
+            break;
+        case 5:
+            PORTB &= 0xbf;
+            break;
+        case 6:
+            PORTB &= 0xf7;
+            break;
+        case 7:
+            PORTB &= 0xfd;
+            break;
+        default:
+            break;
+    }
+}
+
+void unselect_rows(void) {
+    PORTB = (PORTB | 0x7a);
+    PORTC = (PORTC | 0x40);
+    PORTD = (PORTD | 0x80);
+    PORTE = (PORTE | 0x40);
 }
 
 uint8_t matrix_scan(void) {
     for (uint8_t current_row = 0; current_row < MATRIX_ROWS; current_row++) {
+        select_rows(current_row);
+        wait_us(30);
         bool matrix_changed = read_rows_on_col(matrix_debouncing, current_row);
         if (matrix_changed) {
             debouncing = true;
             debouncing_time = timer_read();
         }
+        unselect_rows();
     }
 
     if (debouncing && (timer_elapsed(debouncing_time) > DEBOUNCE)) {
@@ -166,22 +207,20 @@ uint8_t matrix_scan(void) {
 bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t select_row) {
     bool matrix_changed = false;
     for (uint8_t i = 0; i < MATRIX_COLS; i++) {
-        if (i < 13 || i > 14) {
+        if (i < 16) {
             select_cols(i);
-            wait_us(12);
+            wait_us(30);
         }
         matrix_row_t current_value = current_matrix[select_row];
 
-        if (i > 12 && i < 15) {
-            if ((PINF & (1 << ((i & 0x03) + 3))) == 0) {
-                uprintf("row %u,col %u press\n", select_row, i);
+        if (i > 15) {
+            if ((PINF & (1 << (5 - (i & 0x01)))) == 0) {
                 current_matrix[select_row] |= ((uint32_t) 1 << i);
             } else {
                 current_matrix[select_row] &= ~((uint32_t) 1 << i);
             }
         } else {
-            if ((PIND & (1 << 3)) == 0) {
-                uprintf("row %u,col %u press\n", select_row, i);
+            if ((PIND & (1 << 2)) == 0) {
                 current_matrix[select_row] |= ((uint32_t) 1 << i);
             } else {
                 current_matrix[select_row] &= ~((uint32_t) 1 << i);
